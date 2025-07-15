@@ -500,6 +500,314 @@ body {
     margin-top: 1rem;
 }
 
+/* Enhanced Table Styling */
+.enhanced-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.enhanced-table th {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    padding: 1rem 0.75rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.enhanced-table th i {
+    margin-right: 0.5rem;
+    color: #667eea;
+}
+
+.enhanced-table .account-row {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.enhanced-table .account-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+}
+
+.enhanced-table .account-row.selected {
+    background: rgba(103, 126, 234, 0.1);
+    border-left: 4px solid #667eea;
+}
+
+.enhanced-table td {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+
+/* Row number styling */
+.row-number {
+    font-weight: 600;
+    color: #667eea;
+    text-align: center;
+    min-width: 50px;
+}
+
+/* Protocol badges */
+.protocol-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.protocol-badge.vmess {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+}
+
+.protocol-badge.vless {
+    background: linear-gradient(45deg, #f093fb, #f5576c);
+    color: white;
+}
+
+.protocol-badge.trojan {
+    background: linear-gradient(45deg, #4facfe, #00f2fe);
+    color: white;
+}
+
+.protocol-badge.shadowsocks {
+    background: linear-gradient(45deg, #43e97b, #38f9d7);
+    color: #000;
+}
+
+.protocol-badge.shadowsocksr {
+    background: linear-gradient(45deg, #fa709a, #fee140);
+    color: #000;
+}
+
+.protocol-badge.hysteria {
+    background: linear-gradient(45deg, #ff6b6b, #ffa500);
+    color: white;
+}
+
+.protocol-badge.hysteria2 {
+    background: linear-gradient(45deg, #ff9a9e, #fecfef);
+    color: #000;
+}
+
+.protocol-badge.tuic {
+    background: linear-gradient(45deg, #a8edea, #fed6e3);
+    color: #000;
+}
+
+.protocol-badge.unknown {
+    background: linear-gradient(45deg, #6c757d, #495057);
+    color: white;
+}
+
+.protocol-badge i {
+    margin-right: 0.5rem;
+}
+
+/* Port badge */
+.port-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.status-badge.status-waiting {
+    background: linear-gradient(45deg, #ffd700, #ffed4a);
+    color: #000;
+}
+
+.status-badge.status-testing {
+    background: linear-gradient(45deg, #00bfff, #0099cc);
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.status-badge.status-success {
+    background: linear-gradient(45deg, #00ff00, #32cd32);
+    color: #000;
+}
+
+.status-badge.status-failed {
+    background: linear-gradient(45deg, #ff4757, #dc3545);
+    color: white;
+}
+
+.status-badge.status-retry {
+    background: linear-gradient(45deg, #ffa500, #ff8c00);
+    color: white;
+}
+
+.status-badge i {
+    margin-right: 0.5rem;
+}
+
+/* ICMP badges */
+.icmp-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.icmp-badge.icmp-success {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.icmp-badge.icmp-failed {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.icmp-badge.icmp-unknown {
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+    border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+/* Action buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn.test-btn {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+}
+
+.action-btn.info-btn {
+    background: linear-gradient(45deg, #17a2b8, #007bff);
+    color: white;
+}
+
+.action-btn.remove-btn {
+    background: linear-gradient(45deg, #dc3545, #e74c3c);
+    color: white;
+}
+
+/* Cell-specific styling */
+.tag-cell, .server-cell, .provider-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag-text, .server-text, .provider-text {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+}
+
+.ip-text {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #20c997;
+}
+
+.country-flag {
+    font-size: 1.2rem;
+    display: inline-block;
+    text-align: center;
+    min-width: 30px;
+}
+
+.latency-value, .jitter-value {
+    font-weight: 600;
+    font-family: 'Fira Code', monospace;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .enhanced-table {
+        font-size: 0.8rem;
+    }
+    
+    .enhanced-table th,
+    .enhanced-table td {
+        padding: 0.5rem 0.4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .enhanced-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .action-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+}
+
+/* Original table styles updated */
 .accounts-table {
     width: 100%;
     border-collapse: collapse;
@@ -975,4 +1283,191 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* Add to Config Section Styling */
+.add-config-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.01) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin: 1rem 0;
+    backdrop-filter: blur(10px);
+}
+
+.add-config-section .section-header {
+    background: linear-gradient(135deg, rgba(103, 126, 234, 0.1) 0%, rgba(103, 126, 234, 0.05) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.add-config-section .section-header h2 {
+    color: #667eea;
+}
+
+.result-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.success-message {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    color: #28a745;
+}
+
+.success-message i {
+    margin-right: 0.5rem;
+    color: #28a745;
+}
+
+.error-message {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    color: #dc3545;
+}
+
+.error-message i {
+    margin-right: 0.5rem;
+    color: #dc3545;
+}
+
+.warning-message {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+.warning-message i {
+    margin-right: 0.5rem;
+    color: #ffc107;
+}
+
+.info-message {
+    background: rgba(23, 162, 184, 0.1);
+    border: 1px solid rgba(23, 162, 184, 0.3);
+    color: #17a2b8;
+}
+
+.info-message i {
+    margin-right: 0.5rem;
+    color: #17a2b8;
+}
+
+/* Enhanced code editor for existing config */
+.code-editor textarea {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    background: rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 200px;
+    resize: vertical;
+    width: 100%;
+    transition: border-color 0.3s ease;
+}
+
+.code-editor textarea:focus {
+    border-color: #667eea;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(103, 126, 234, 0.1);
+}
+
+.text-input textarea {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    background: rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 150px;
+    resize: vertical;
+    width: 100%;
+    transition: border-color 0.3s ease;
+}
+
+.text-input textarea:focus {
+    border-color: #667eea;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(103, 126, 234, 0.1);
+}
+
+.input-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+/* Link count styling */
+.link-count {
+    font-size: 0.8rem;
+    color: #a0a0a0;
+    font-weight: normal;
+    margin-left: 0.5rem;
+}
+
+/* Button states */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Notification enhancements */
+.notification {
+    position: relative;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    border-left: 4px solid;
+    animation: slideIn 0.3s ease;
+}
+
+.notification.success {
+    background: rgba(40, 167, 69, 0.1);
+    border-left-color: #28a745;
+    color: #28a745;
+}
+
+.notification.error {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: #dc3545;
+    color: #dc3545;
+}
+
+.notification.warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-left-color: #ffc107;
+    color: #ffc107;
+}
+
+.notification.info {
+    background: rgba(23, 162, 184, 0.1);
+    border-left-color: #17a2b8;
+    color: #17a2b8;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

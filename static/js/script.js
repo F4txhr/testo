@@ -717,43 +717,95 @@ function displayAccountsTable() {
     const container = document.getElementById('accounts-table');
     
     if (parsedAccounts.length === 0) {
-        container.innerHTML = '<p style="color: #a0a0a0; text-align: center;">No accounts parsed yet</p>';
+        container.innerHTML = '<p style="color: #a0a0a0; text-align: center; padding: 2rem;">No accounts parsed yet. Paste some VPN links to get started!</p>';
         return;
     }
     
     const table = document.createElement('table');
-    table.className = 'accounts-table';
+    table.className = 'accounts-table enhanced-table';
     
     table.innerHTML = `
         <thead>
             <tr>
-                <th>No</th>
-                <th>Type</th>
-                <th>Tag</th>
-                <th>Country</th>
-                <th>Provider</th>
-                <th>IP</th>
-                <th>Latency</th>
-                <th>Jitter</th>
-                <th>ICMP</th>
-                <th>Status</th>
+                <th><i class="fas fa-hashtag"></i> No</th>
+                <th><i class="fas fa-shield-alt"></i> Type</th>
+                <th><i class="fas fa-tag"></i> Tag</th>
+                <th><i class="fas fa-server"></i> Server</th>
+                <th><i class="fas fa-plug"></i> Port</th>
+                <th><i class="fas fa-flag"></i> Country</th>
+                <th><i class="fas fa-building"></i> Provider</th>
+                <th><i class="fas fa-map-marker-alt"></i> IP</th>
+                <th><i class="fas fa-clock"></i> Latency</th>
+                <th><i class="fas fa-wave-square"></i> Jitter</th>
+                <th><i class="fas fa-satellite-dish"></i> ICMP</th>
+                <th><i class="fas fa-heartbeat"></i> Status</th>
+                <th><i class="fas fa-cogs"></i> Actions</th>
             </tr>
         </thead>
         <tbody>
             ${parsedAccounts.map((account, index) => {
                 const result = testResults[index] || {};
+                const latencyColor = getLatencyColor(result.latency);
+                const jitterColor = getJitterColor(result.jitter);
+                const statusBadge = getStatusBadge(result.status);
+                
                 return `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><span class="protocol-badge">${account.type?.toUpperCase() || 'N/A'}</span></td>
-                        <td>${account.tag || '-'}</td>
-                        <td>${result.country || '❓'}</td>
-                        <td>${result.provider || '-'}</td>
-                        <td>${result.ip || '-'}</td>
-                        <td>${result.latency >= 0 ? result.latency + ' ms' : '-'}</td>
-                        <td>${result.jitter >= 0 ? result.jitter + ' ms' : '-'}</td>
-                        <td>${result.icmp || 'N/A'}</td>
-                        <td class="${getStatusClass(result.status)}">${result.status || 'WAIT'}</td>
+                    <tr class="account-row" data-index="${index}">
+                        <td class="row-number">${index + 1}</td>
+                        <td>
+                            <span class="protocol-badge ${account.type?.toLowerCase() || 'unknown'}">
+                                ${getProtocolIcon(account.type)} ${account.type?.toUpperCase() || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="tag-cell">
+                            <span class="tag-text" title="${account.tag || 'No tag'}">${truncateText(account.tag || '-', 20)}</span>
+                        </td>
+                        <td class="server-cell">
+                            <span class="server-text" title="${account.server || 'No server'}">${truncateText(account.server || '-', 25)}</span>
+                        </td>
+                        <td class="port-cell">
+                            <span class="port-badge">${account.server_port || '-'}</span>
+                        </td>
+                        <td class="country-cell">
+                            <span class="country-flag">${result.country || '❓'}</span>
+                        </td>
+                        <td class="provider-cell">
+                            <span class="provider-text">${truncateText(result.provider || '-', 15)}</span>
+                        </td>
+                        <td class="ip-cell">
+                            <span class="ip-text">${result.ip || '-'}</span>
+                        </td>
+                        <td class="latency-cell">
+                            <span class="latency-value" style="color: ${latencyColor}">
+                                ${result.latency >= 0 ? `${result.latency} ms` : '-'}
+                            </span>
+                        </td>
+                        <td class="jitter-cell">
+                            <span class="jitter-value" style="color: ${jitterColor}">
+                                ${result.jitter >= 0 ? `${result.jitter} ms` : '-'}
+                            </span>
+                        </td>
+                        <td class="icmp-cell">
+                            <span class="icmp-badge ${getIcmpClass(result.icmp)}">
+                                ${result.icmp || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="status-cell">
+                            ${statusBadge}
+                        </td>
+                        <td class="actions-cell">
+                            <div class="action-buttons">
+                                <button class="action-btn test-btn" onclick="testSingleAccount(${index})" title="Test Account">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="action-btn info-btn" onclick="showAccountInfo(${index})" title="Account Info">
+                                    <i class="fas fa-info"></i>
+                                </button>
+                                <button class="action-btn remove-btn" onclick="removeAccount(${index})" title="Remove Account">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                 `;
             }).join('')}
@@ -762,16 +814,115 @@ function displayAccountsTable() {
     
     container.innerHTML = '';
     container.appendChild(table);
+    
+    // Add click event listeners for row selection
+    table.querySelectorAll('.account-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('.action-buttons')) {
+                this.classList.toggle('selected');
+            }
+        });
+    });
 }
 
-function getStatusClass(status) {
-    if (!status) return 'status-waiting';
-    if (status === 'WAIT') return 'status-waiting';
-    if (status === '●') return 'status-success';
-    if (status.startsWith('✖')) return 'status-failed';
-    if (status.startsWith('Testing')) return 'status-testing';
-    if (status.startsWith('Retry')) return 'status-retry';
-    return 'status-waiting';
+function getLatencyColor(latency) {
+    if (latency < 0) return '#6c757d'; // Gray for unknown
+    if (latency < 50) return '#28a745'; // Green for excellent
+    if (latency < 100) return '#ffc107'; // Yellow for good
+    if (latency < 200) return '#fd7e14'; // Orange for fair
+    if (latency < 500) return '#dc3545'; // Red for poor
+    return '#6f42c1'; // Purple for very poor
+}
+
+function getJitterColor(jitter) {
+    if (jitter < 0) return '#6c757d'; // Gray for unknown
+    if (jitter < 5) return '#28a745'; // Green for excellent
+    if (jitter < 15) return '#ffc107'; // Yellow for good
+    if (jitter < 30) return '#fd7e14'; // Orange for fair
+    if (jitter < 50) return '#dc3545'; // Red for poor
+    return '#6f42c1'; // Purple for very poor
+}
+
+function getStatusBadge(status) {
+    if (!status || status === 'WAIT') {
+        return '<span class="status-badge status-waiting"><i class="fas fa-hourglass-half"></i> WAIT</span>';
+    }
+    if (status === '●') {
+        return '<span class="status-badge status-success"><i class="fas fa-check-circle"></i> ONLINE</span>';
+    }
+    if (status.startsWith('✖')) {
+        return '<span class="status-badge status-failed"><i class="fas fa-times-circle"></i> FAILED</span>';
+    }
+    if (status.startsWith('Testing')) {
+        return '<span class="status-badge status-testing"><i class="fas fa-spinner fa-spin"></i> TESTING</span>';
+    }
+    if (status.startsWith('Retry')) {
+        return '<span class="status-badge status-retry"><i class="fas fa-redo"></i> RETRY</span>';
+    }
+    return '<span class="status-badge status-waiting"><i class="fas fa-hourglass-half"></i> WAIT</span>';
+}
+
+function getProtocolIcon(type) {
+    const icons = {
+        'vmess': '<i class="fas fa-shield-alt"></i>',
+        'vless': '<i class="fas fa-shield-virus"></i>',
+        'trojan': '<i class="fas fa-horse"></i>',
+        'shadowsocks': '<i class="fas fa-eye-slash"></i>',
+        'shadowsocksr': '<i class="fas fa-user-secret"></i>',
+        'hysteria': '<i class="fas fa-bolt"></i>',
+        'hysteria2': '<i class="fas fa-thunder"></i>',
+        'tuic': '<i class="fas fa-rocket"></i>'
+    };
+    return icons[type?.toLowerCase()] || '<i class="fas fa-question"></i>';
+}
+
+function getIcmpClass(icmp) {
+    if (!icmp || icmp === 'N/A') return 'icmp-unknown';
+    if (icmp.includes('✓') || icmp.includes('OK')) return 'icmp-success';
+    if (icmp.includes('✗') || icmp.includes('FAIL')) return 'icmp-failed';
+    return 'icmp-unknown';
+}
+
+function truncateText(text, maxLength) {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+}
+
+// New action functions
+function testSingleAccount(index) {
+    // Implementation for testing single account
+    console.log('Testing account:', index);
+    // Add your test logic here
+}
+
+function showAccountInfo(index) {
+    const account = parsedAccounts[index];
+    const result = testResults[index] || {};
+    
+    // Create modal or alert with account information
+    const info = `
+        Account Info:
+        - Type: ${account.type || 'N/A'}
+        - Tag: ${account.tag || 'N/A'}
+        - Server: ${account.server || 'N/A'}
+        - Port: ${account.server_port || 'N/A'}
+        - Status: ${result.status || 'Not tested'}
+        - Latency: ${result.latency >= 0 ? result.latency + ' ms' : 'N/A'}
+        - Country: ${result.country || 'Unknown'}
+        - Provider: ${result.provider || 'Unknown'}
+    `;
+    
+    alert(info); // Replace with a proper modal later
+}
+
+function removeAccount(index) {
+    if (confirm('Are you sure you want to remove this account?')) {
+        parsedAccounts.splice(index, 1);
+        testResults.splice(index, 1);
+        displayAccountsTable();
+        updateAccountCount();
+        updateButtonStates();
+    }
 }
 
 // Config Generation Functions
@@ -1038,3 +1189,248 @@ document.getElementById('github-repo').addEventListener('input', saveGitHubCrede
 
 // Auto-update config stats when config changes
 document.getElementById('config-output').addEventListener('input', updateConfigStats);
+
+// Add to Config Functions
+async function addToConfig() {
+    const existingConfig = document.getElementById('existing-config').value.trim();
+    const newLinksText = document.getElementById('new-links').value.trim();
+    
+    if (!existingConfig) {
+        showNotification('Please provide an existing configuration', 'error');
+        return;
+    }
+    
+    if (!newLinksText) {
+        showNotification('Please provide new VPN links to add', 'error');
+        return;
+    }
+    
+    const newLinks = newLinksText.split('\n').filter(link => link.trim());
+    
+    showLoading('Adding accounts to configuration...');
+    
+    try {
+        const response = await fetch('/api/add-to-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                existing_config: existingConfig,
+                new_links: newLinks
+            }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('config-output').value = data.config;
+            updateConfigStats();
+            
+            const resultDiv = document.getElementById('add-config-result');
+            resultDiv.innerHTML = `
+                <div class="success-message">
+                    <i class="fas fa-check-circle"></i>
+                    Successfully added ${data.added_count} new accounts to configuration!
+                    <br>
+                    Total accounts: ${data.total_accounts}
+                </div>
+            `;
+            
+            showNotification(`Added ${data.added_count} accounts to configuration`, 'success');
+            
+            // Clear the new links input
+            document.getElementById('new-links').value = '';
+            updateNewLinkCount();
+            
+        } else {
+            const resultDiv = document.getElementById('add-config-result');
+            resultDiv.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error: ${data.error}
+                </div>
+            `;
+            showNotification(data.error, 'error');
+        }
+        
+    } catch (error) {
+        const resultDiv = document.getElementById('add-config-result');
+        resultDiv.innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                Network error: ${error.message}
+            </div>
+        `;
+        showNotification('Network error occurred', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function validateExistingConfig() {
+    const configText = document.getElementById('existing-config').value.trim();
+    
+    if (!configText) {
+        showNotification('Please provide a configuration to validate', 'error');
+        return;
+    }
+    
+    try {
+        const config = JSON.parse(configText);
+        
+        // Basic validation
+        if (!config.outbounds || !Array.isArray(config.outbounds)) {
+            showNotification('Invalid configuration: missing outbounds array', 'error');
+            return;
+        }
+        
+        const accountCount = config.outbounds.filter(o => 
+            ['vmess', 'vless', 'trojan', 'shadowsocks', 'shadowsocksr', 'hysteria', 'hysteria2', 'tuic'].includes(o.type)
+        ).length;
+        
+        showNotification(`Configuration is valid! Found ${accountCount} VPN accounts`, 'success');
+        updateAddToConfigButtons();
+        
+    } catch (error) {
+        showNotification('Invalid JSON configuration', 'error');
+    }
+}
+
+function detectNewLinks() {
+    const linksText = document.getElementById('new-links').value;
+    const links = linksText.split('\n').filter(link => {
+        const trimmed = link.trim();
+        return trimmed && (
+            trimmed.startsWith('vmess://') ||
+            trimmed.startsWith('vless://') ||
+            trimmed.startsWith('trojan://') ||
+            trimmed.startsWith('ss://') ||
+            trimmed.startsWith('ssr://') ||
+            trimmed.startsWith('hysteria://') ||
+            trimmed.startsWith('hysteria2://') ||
+            trimmed.startsWith('hy2://') ||
+            trimmed.startsWith('tuic://')
+        );
+    });
+    
+    document.getElementById('new-link-count').textContent = links.length;
+    updateAddToConfigButtons();
+    
+    if (links.length > 0) {
+        showNotification(`Detected ${links.length} valid VPN links`, 'success');
+    } else {
+        showNotification('No valid VPN links detected', 'warning');
+    }
+}
+
+function updateNewLinkCount() {
+    const linksText = document.getElementById('new-links').value;
+    const links = linksText.split('\n').filter(link => {
+        const trimmed = link.trim();
+        return trimmed && (
+            trimmed.startsWith('vmess://') ||
+            trimmed.startsWith('vless://') ||
+            trimmed.startsWith('trojan://') ||
+            trimmed.startsWith('ss://') ||
+            trimmed.startsWith('ssr://') ||
+            trimmed.startsWith('hysteria://') ||
+            trimmed.startsWith('hysteria2://') ||
+            trimmed.startsWith('hy2://') ||
+            trimmed.startsWith('tuic://')
+        );
+    });
+    
+    document.getElementById('new-link-count').textContent = links.length;
+    updateAddToConfigButtons();
+}
+
+function updateAddToConfigButtons() {
+    const hasConfig = document.getElementById('existing-config').value.trim();
+    const hasLinks = document.getElementById('new-link-count').textContent !== '0';
+    
+    document.getElementById('add-to-config-btn').disabled = !hasConfig || !hasLinks;
+    document.getElementById('preview-merged-btn').disabled = !hasConfig || !hasLinks;
+}
+
+function clearNewLinks() {
+    document.getElementById('new-links').value = '';
+    updateNewLinkCount();
+}
+
+function loadConfigFromFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('existing-config').value = e.target.result;
+                validateExistingConfig();
+            };
+            reader.readAsText(file);
+        }
+    };
+    input.click();
+}
+
+function previewMergedConfig() {
+    const existingConfig = document.getElementById('existing-config').value.trim();
+    const newLinksText = document.getElementById('new-links').value.trim();
+    
+    if (!existingConfig || !newLinksText) {
+        showNotification('Please provide both existing config and new links', 'error');
+        return;
+    }
+    
+    try {
+        const config = JSON.parse(existingConfig);
+        const newLinks = newLinksText.split('\n').filter(link => link.trim());
+        
+        // Show preview modal with existing accounts and new links
+        const existingAccounts = config.outbounds.filter(o => 
+            ['vmess', 'vless', 'trojan', 'shadowsocks', 'shadowsocksr', 'hysteria', 'hysteria2', 'tuic'].includes(o.type)
+        );
+        
+        const previewContent = `
+            <div class="preview-summary">
+                <h4>Merge Preview</h4>
+                <p><strong>Existing accounts:</strong> ${existingAccounts.length}</p>
+                <p><strong>New links to add:</strong> ${newLinks.length}</p>
+                <p><strong>Total after merge:</strong> ${existingAccounts.length + newLinks.length}</p>
+            </div>
+            <div class="preview-details">
+                <h5>Existing Accounts:</h5>
+                <ul>
+                    ${existingAccounts.map(acc => `<li>${acc.type}: ${acc.tag || acc.server}</li>`).join('')}
+                </ul>
+                <h5>New Links:</h5>
+                <ul>
+                    ${newLinks.map(link => `<li>${link.substring(0, 50)}...</li>`).join('')}
+                </ul>
+            </div>
+        `;
+        
+        // Show in a simple alert for now (can be enhanced to a proper modal)
+        alert(previewContent.replace(/<[^>]*>/g, '\n').replace(/\n\s*\n/g, '\n'));
+        
+    } catch (error) {
+        showNotification('Error parsing configuration', 'error');
+    }
+}
+
+// Set up event listeners for new links input
+document.addEventListener('DOMContentLoaded', function() {
+    const newLinksInput = document.getElementById('new-links');
+    const existingConfigInput = document.getElementById('existing-config');
+    
+    if (newLinksInput) {
+        newLinksInput.addEventListener('input', updateNewLinkCount);
+    }
+    
+    if (existingConfigInput) {
+        existingConfigInput.addEventListener('input', updateAddToConfigButtons);
+    }
+});

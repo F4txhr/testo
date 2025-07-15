@@ -265,7 +265,6 @@ def parse_vmess(link):
             "server": config.get("add", ""),
             "server_port": int(config.get("port", 443)),
             "uuid": config.get("id", ""),
-            "alterId": int(config.get("aid", 0)),
             "security": config.get("scy", "auto"),
             "tls": {
                 "enabled": config.get("tls", "none") == "tls",
@@ -274,6 +273,10 @@ def parse_vmess(link):
             },
             "transport": {}
         }
+        
+        # Only add alterId if it's not 0 (as per your request to remove encryption none)
+        if int(config.get("aid", 0)) != 0:
+            outbound["alterId"] = int(config.get("aid", 0))
         
         # Handle different transport types
         net = config.get("net", "ws")
@@ -326,7 +329,8 @@ def parse_vmess(link):
             
         return outbound
         
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
+    except Exception as e:
+        print(f"Error parsing vmess link: {e}")
         return None
 
 def parse_hysteria(link):
@@ -467,20 +471,53 @@ def parse_link(link):
 def inject_outbounds_to_template(template_data: dict, new_outbounds: list) -> dict:
     if not new_outbounds:
         return template_data
+    
+    # Clean up outbounds - remove "encryption": "none"
+    for outbound in new_outbounds:
+        if "encryption" in outbound and outbound["encryption"] == "none":
+            del outbound["encryption"]
+    
     all_new_tags = [acc['tag'] for acc in new_outbounds]
+    
     # DEBUG: print all tags
     for tag in all_new_tags:
         print("TAG INJECTED:", tag)
+    
+    # Add new tags to existing selectors
     for outbound in template_data.get("outbounds", []):
         if outbound.get("tag") in ["Internet", "Best Latency", "Lock Region ID"]:
             outbound_list = outbound.get("outbounds", [])
             for tag in all_new_tags:
                 if tag not in outbound_list:
                     outbound_list.append(tag)
-    outbounds_list = template_data["outbounds"]
-    insert_index = next((i for i, o in enumerate(outbounds_list) if o.get("tag") == "direct"), -1)
-    if insert_index != -1:
-        template_data["outbounds"] = outbounds_list[:insert_index] + new_outbounds + outbounds_list[insert_index:]
+    
+    # Find existing accounts and merge with new ones
+    existing_outbounds = []
+    direct_index = -1
+    
+    for i, outbound in enumerate(template_data["outbounds"]):
+        if outbound.get("tag") == "direct":
+            direct_index = i
+            break
+        elif outbound.get("type") in ["vmess", "vless", "trojan", "shadowsocks", "shadowsocksr", "hysteria", "hysteria2", "tuic"]:
+            existing_outbounds.append(outbound)
+    
+    # Merge new outbounds with existing ones, avoiding duplicates
+    merged_outbounds = existing_outbounds.copy()
+    for new_outbound in new_outbounds:
+        # Check if this account already exists (by tag)
+        existing_tags = [acc.get("tag") for acc in merged_outbounds]
+        if new_outbound.get("tag") not in existing_tags:
+            merged_outbounds.append(new_outbound)
+    
+    # Insert merged outbounds at the correct position
+    if direct_index != -1:
+        template_data["outbounds"] = (
+            template_data["outbounds"][:direct_index] + 
+            merged_outbounds + 
+            template_data["outbounds"][direct_index:]
+        )
     else:
-        template_data["outbounds"].extend(new_outbounds)
+        template_data["outbounds"].extend(merged_outbounds)
+    
     return template_data

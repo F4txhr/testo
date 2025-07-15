@@ -258,5 +258,45 @@ def extract_from_config():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/add-to-config', methods=['POST'])
+def add_to_config():
+    data = request.get_json()
+    existing_config = data.get('existing_config')
+    new_links = data.get('new_links', [])
+    
+    if not existing_config:
+        return jsonify({'error': 'No existing config provided'}), 400
+    
+    if not new_links:
+        return jsonify({'error': 'No new links provided'}), 400
+    
+    try:
+        # Parse existing config
+        config_data = json.loads(existing_config) if isinstance(existing_config, str) else existing_config
+        
+        # Parse new links
+        new_outbounds = []
+        for link in new_links:
+            if link.strip():
+                result = parse_link(link.strip())
+                if result:
+                    new_outbounds.append(result)
+        
+        if not new_outbounds:
+            return jsonify({'error': 'No valid links found'}), 400
+        
+        # Add new outbounds to existing config
+        updated_config = inject_outbounds_to_template(config_data, new_outbounds)
+        
+        return jsonify({
+            'success': True,
+            'config': json.dumps(updated_config, indent=2),
+            'added_count': len(new_outbounds),
+            'total_accounts': len([o for o in updated_config.get('outbounds', []) if o.get('type') in ['vmess', 'vless', 'trojan', 'shadowsocks', 'shadowsocksr', 'hysteria', 'hysteria2', 'tuic']])
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error adding to config: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
