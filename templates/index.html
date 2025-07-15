@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VortexVPN Config Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="bg-animation"></div>
+        <div class="floating-particles"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-shield-alt"></i> VortexVPN Config Manager</h1>
+                <p>Advanced VPN Configuration Testing & Management System</p>
+                <div class="supported-protocols">
+                    <span class="protocol-badge">VLESS</span>
+                    <span class="protocol-badge">VMESS</span>
+                    <span class="protocol-badge">TROJAN</span>
+                    <span class="protocol-badge">SHADOWSOCKS</span>
+                    <span class="protocol-badge">SSR</span>
+                    <span class="protocol-badge">HYSTERIA</span>
+                    <span class="protocol-badge">HYSTERIA2</span>
+                    <span class="protocol-badge">TUIC</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- GitHub Integration Section -->
+            <section class="section github-section">
+                <div class="section-header" onclick="toggleSection('github-content')">
+                    <h2><i class="fab fa-github"></i> GitHub Integration</h2>
+                    <button class="toggle-btn">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="github-content" class="section-content">
+                    <div class="form-group">
+                        <label for="github-token">
+                            <i class="fas fa-key"></i> GitHub Token
+                            <span class="tooltip" data-tooltip="Personal Access Token with repo permissions">
+                                <i class="fas fa-info-circle"></i>
+                            </span>
+                        </label>
+                        <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="github-owner">
+                                <i class="fas fa-user"></i> Owner
+                            </label>
+                            <input type="text" id="github-owner" placeholder="GitHub username">
+                        </div>
+                        <div class="form-group">
+                            <label for="github-repo">
+                                <i class="fas fa-repository"></i> Repository
+                            </label>
+                            <input type="text" id="github-repo" placeholder="Repository name">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="loadGitHubFiles()">
+                            <i class="fas fa-folder-open"></i> Load Files
+                        </button>
+                        <button class="btn btn-secondary" onclick="uploadToGitHub()">
+                            <i class="fas fa-upload"></i> Upload Config
+                        </button>
+                        <button class="btn btn-info" onclick="createGitHubGist()">
+                            <i class="fas fa-code"></i> Create Gist
+                        </button>
+                    </div>
+                    <div id="github-files" class="file-list"></div>
+                </div>
+            </section>
+
+            <!-- VPN Links Input Section -->
+            <section class="section input-section">
+                <div class="section-header" onclick="toggleSection('input-content')">
+                    <h2><i class="fas fa-link"></i> VPN Links Input</h2>
+                    <button class="toggle-btn">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="input-content" class="section-content">
+                    <div class="form-group">
+                        <label for="vpn-links">
+                            <i class="fas fa-paste"></i> Paste VPN Links
+                            <span class="link-count">(<span id="link-count">0</span> links detected)</span>
+                        </label>
+                        <textarea id="vpn-links" placeholder="Paste your VPN links here...
+
+Supported formats:
+• vless://uuid@server:port?encryption=none&security=tls&type=ws&host=example.com&path=/path#name
+• vmess://eyJhZGQiOiAiZXhhbXBsZS5jb20iLCAicG9ydCI6ICI0NDMiLCAiaWQiOiAiMTIzNDUifQ==
+• trojan://password@server:port?security=tls&type=ws&host=example.com&path=/path#name
+• ss://method:password@server:port#name
+• ssr://base64encodedconfig
+• hysteria://auth@server:port?upmbps=100&downmbps=100#name
+• hysteria2://password@server:port?obfs=salamander#name
+• tuic://uuid:password@server:port?congestion_control=bbr#name
+
+You can paste multiple links or mix them with other text."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="parseLinks()">
+                            <i class="fas fa-cogs"></i> Parse Links
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearLinks()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <button class="btn btn-info" onclick="loadFromFile()">
+                            <i class="fas fa-file-upload"></i> Load from File
+                        </button>
+                        <button class="btn btn-warning" onclick="validateLinks()">
+                            <i class="fas fa-check-circle"></i> Validate
+                        </button>
+                    </div>
+                    <input type="file" id="file-input" accept=".json,.txt" style="display: none;">
+                </div>
+            </section>
+
+            <!-- Parsed Accounts Section -->
+            <section class="section accounts-section">
+                <div class="section-header" onclick="toggleSection('accounts-content')">
+                    <h2><i class="fas fa-list"></i> Parsed Accounts (<span id="account-count">0</span>)</h2>
+                    <div class="section-controls">
+                        <button class="btn btn-small btn-info" onclick="selectAllAccounts()">
+                            <i class="fas fa-check-square"></i> Select All
+                        </button>
+                        <button class="btn btn-small btn-warning" onclick="deselectAllAccounts()">
+                            <i class="fas fa-square"></i> Deselect All
+                        </button>
+                        <button class="toggle-btn">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="accounts-content" class="section-content">
+                    <div class="test-controls">
+                        <div class="control-group">
+                            <label for="concurrent-tests">
+                                <i class="fas fa-bolt"></i> Concurrent Tests
+                            </label>
+                            <select id="concurrent-tests">
+                                <option value="3">3</option>
+                                <option value="5" selected>5</option>
+                                <option value="7">7</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="test-timeout">
+                                <i class="fas fa-clock"></i> Timeout (seconds)
+                            </label>
+                            <select id="test-timeout">
+                                <option value="10">10</option>
+                                <option value="15" selected>15</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-success" onclick="startTesting()" id="test-btn">
+                            <i class="fas fa-play"></i> Start Testing
+                        </button>
+                        <button class="btn btn-warning" onclick="stopTesting()" id="stop-btn" disabled>
+                            <i class="fas fa-stop"></i> Stop Testing
+                        </button>
+                        <button class="btn btn-info" onclick="generateConfig()" id="generate-btn" disabled>
+                            <i class="fas fa-file-code"></i> Generate Config
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportResults()">
+                            <i class="fas fa-file-export"></i> Export Results
+                        </button>
+                    </div>
+                    <div id="test-progress" class="test-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <div class="progress-stats">
+                            <span id="progress-text">Testing...</span>
+                            <span id="progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="accounts-table" class="table-container"></div>
+                </div>
+            </section>
+
+            <!-- Config Output Section -->
+            <section class="section config-section">
+                <div class="section-header" onclick="toggleSection('config-content')">
+                    <h2><i class="fas fa-file-code"></i> Generated Config</h2>
+                    <div class="section-controls">
+                        <button class="btn btn-small btn-info" onclick="formatConfig()">
+                            <i class="fas fa-code"></i> Format
+                        </button>
+                        <button class="btn btn-small btn-warning" onclick="validateConfig()">
+                            <i class="fas fa-check"></i> Validate
+                        </button>
+                        <button class="toggle-btn">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="config-content" class="section-content">
+                    <div class="config-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-server"></i>
+                            <span>Servers: <span id="config-servers">0</span></span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-globe"></i>
+                            <span>Countries: <span id="config-countries">0</span></span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-network-wired"></i>
+                            <span>Protocols: <span id="config-protocols">0</span></span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Size: <span id="config-size">0 KB</span></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="config-output">
+                            <i class="fas fa-code"></i> Configuration JSON
+                        </label>
+                        <div class="code-editor">
+                            <textarea id="config-output" readonly></textarea>
+                            <div class="code-actions">
+                                <button class="btn btn-small btn-secondary" onclick="copyConfig()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="btn btn-small btn-info" onclick="toggleWrap()">
+                                    <i class="fas fa-text-width"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="downloadConfig()">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="btn btn-secondary" onclick="copyConfig()">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="btn btn-success" onclick="shareConfig()">
+                            <i class="fas fa-share"></i> Share
+                        </button>
+                        <button class="btn btn-info" onclick="previewConfig()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="section stats-section">
+                <div class="section-header" onclick="toggleSection('stats-content')">
+                    <h2><i class="fas fa-chart-bar"></i> Statistics</h2>
+                    <button class="toggle-btn">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="stats-content" class="section-content collapsed">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="stats-successful">0</h3>
+                                <p>Successful</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="stats-failed">0</h3>
+                                <p>Failed</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="stats-avg-latency">0ms</h3>
+                                <p>Avg Latency</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="stats-success-rate">0%</h3>
+                                <p>Success Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="stats-charts" class="charts-container">
+                        <!-- Charts will be generated here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2024 VortexVPN Config Manager. Built with ❤️ for the VPN community.</p>
+                <div class="footer-links">
+                    <a href="#" onclick="showAbout()">About</a>
+                    <a href="#" onclick="showHelp()">Help</a>
+                    <a href="#" onclick="showKeyboardShortcuts()">Shortcuts</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p id="loading-text">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Modal for GitHub File Selection -->
+    <div id="file-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-github"></i> Select GitHub File</h3>
+                <button class="close-btn" onclick="closeModal('file-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="file-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Upload to GitHub -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-upload"></i> Upload to GitHub</h3>
+                <button class="close-btn" onclick="closeModal('upload-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="upload-filename">
+                        <i class="fas fa-file"></i> Filename
+                    </label>
+                    <input type="text" id="upload-filename" placeholder="e.g., VortexVpn-config.json">
+                </div>
+                <div class="form-group">
+                    <label for="commit-message">
+                        <i class="fas fa-comment"></i> Commit Message
+                    </label>
+                    <input type="text" id="commit-message" placeholder="Update VPN configuration">
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="confirmUpload()">
+                        <i class="fas fa-upload"></i> Upload
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeModal('upload-modal')">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Config Preview -->
+    <div id="preview-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3><i class="fas fa-eye"></i> Configuration Preview</h3>
+                <button class="close-btn" onclick="closeModal('preview-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="preview-content" class="preview-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Help -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-question-circle"></i> Help</h3>
+                <button class="close-btn" onclick="closeModal('help-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="help-content">
+                    <h4>Supported VPN Protocols</h4>
+                    <ul>
+                        <li><strong>VLESS:</strong> Modern protocol with UUID authentication</li>
+                        <li><strong>VMESS:</strong> Base64 encoded configuration</li>
+                        <li><strong>Trojan:</strong> Password-based authentication</li>
+                        <li><strong>Shadowsocks:</strong> Encrypted proxy protocol</li>
+                        <li><strong>ShadowsocksR:</strong> Enhanced version with obfuscation</li>
+                        <li><strong>Hysteria:</strong> High-performance protocol</li>
+                        <li><strong>Hysteria2:</strong> Latest version with improvements</li>
+                        <li><strong>TUIC:</strong> QUIC-based protocol</li>
+                    </ul>
+                    <h4>How to Use</h4>
+                    <ol>
+                        <li>Paste VPN links in the input section</li>
+                        <li>Click "Parse Links" to extract configurations</li>
+                        <li>Test accounts to check connectivity</li>
+                        <li>Generate final configuration from successful tests</li>
+                        <li>Download or upload to GitHub</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <!-- Scripts -->
+    <script src="/static/js/script.js"></script>
+</body>
+</html>

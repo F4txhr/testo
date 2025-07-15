@@ -106,6 +106,54 @@ def parse_ss(link):
     outbound["_ss_path"] = query_params["path"][0] if "path" in query_params else ""
     return outbound
 
+def parse_ssr(link):
+    """Parse SSR (ShadowsocksR) links"""
+    if not link.startswith("ssr://"):
+        return None
+    
+    try:
+        # Remove ssr:// prefix and decode base64
+        config_b64 = link[6:]
+        config_decoded = base64.urlsafe_b64decode(config_b64 + "=" * (-len(config_b64) % 4)).decode('utf-8')
+        
+        # Parse the SSR format: server:port:protocol:method:obfs:password_base64/?params
+        parts = config_decoded.split('/')
+        main_part = parts[0]
+        params_part = parts[1] if len(parts) > 1 else ""
+        
+        # Parse main part
+        server, port, protocol, method, obfs, password_b64 = main_part.split(':')
+        password = base64.urlsafe_b64decode(password_b64 + "=" * (-len(password_b64) % 4)).decode('utf-8')
+        
+        # Parse parameters
+        params = parse_qs(params_part) if params_part else {}
+        
+        tag = ""
+        if 'remarks' in params:
+            tag = base64.urlsafe_b64decode(params['remarks'][0] + "=" * (-len(params['remarks'][0]) % 4)).decode('utf-8')
+        
+        outbound = {
+            "type": "shadowsocksr",
+            "tag": tag or server or "ssr",
+            "server": server,
+            "server_port": int(port),
+            "method": method,
+            "password": password,
+            "protocol": protocol,
+            "obfs": obfs,
+        }
+        
+        # Add additional parameters
+        if 'obfsparam' in params:
+            outbound["obfs_param"] = base64.urlsafe_b64decode(params['obfsparam'][0] + "=" * (-len(params['obfsparam'][0]) % 4)).decode('utf-8')
+        if 'protoparam' in params:
+            outbound["protocol_param"] = base64.urlsafe_b64decode(params['protoparam'][0] + "=" * (-len(params['protoparam'][0]) % 4)).decode('utf-8')
+        
+        return outbound
+        
+    except Exception as e:
+        return None
+
 def parse_vless(link):
     url = urlparse(link)
     params = parse_qs(url.query)
@@ -131,6 +179,19 @@ def parse_vless(link):
         }
         outbound["_ws_host"] = params.get("host", [""])[0]
         outbound["_ws_path"] = params.get("path", [""])[0]
+    elif net == "grpc":
+        outbound["transport"] = {
+            "type": "grpc",
+            "service_name": params.get("serviceName", [""])[0],
+        }
+        outbound["_grpc_service"] = params.get("serviceName", [""])[0]
+    elif net == "tcp":
+        outbound["transport"] = {
+            "type": "tcp",
+            "header": {
+                "type": params.get("headerType", ["none"])[0]
+            }
+        }
     else:
         outbound["_ws_host"] = ""
         outbound["_ws_path"] = ""
@@ -161,18 +222,245 @@ def parse_trojan(link):
         }
         outbound["_ws_host"] = params.get("host", [""])[0]
         outbound["_ws_path"] = params.get("path", [""])[0]
+    elif net == "grpc":
+        outbound["transport"] = {
+            "type": "grpc",
+            "service_name": params.get("serviceName", [""])[0],
+        }
+        outbound["_grpc_service"] = params.get("serviceName", [""])[0]
+    elif net == "tcp":
+        outbound["transport"] = {
+            "type": "tcp",
+            "header": {
+                "type": params.get("headerType", ["none"])[0]
+            }
+        }
     else:
         outbound["_ws_host"] = ""
         outbound["_ws_path"] = ""
+    
+    # Handle additional trojan parameters
+    if "fp" in params:
+        outbound["tls"]["fingerprint"] = params["fp"][0]
+    if "encryption" in params:
+        outbound["encryption"] = params["encryption"][0]
+    
     return outbound
 
+def parse_vmess(link):
+    """Parse vmess:// links with base64 encoded config"""
+    if not link.startswith("vmess://"):
+        return None
+    
+    try:
+        # Remove vmess:// prefix and decode base64
+        config_b64 = link[8:]
+        config_json = base64.b64decode(config_b64).decode('utf-8')
+        config = json.loads(config_json)
+        
+        # Extract configuration
+        outbound = {
+            "type": "vmess",
+            "tag": config.get("ps", config.get("add", "vmess")),
+            "server": config.get("add", ""),
+            "server_port": int(config.get("port", 443)),
+            "uuid": config.get("id", ""),
+            "alterId": int(config.get("aid", 0)),
+            "security": config.get("scy", "auto"),
+            "tls": {
+                "enabled": config.get("tls", "none") == "tls",
+                "server_name": config.get("sni", config.get("add", "")),
+                "insecure": False
+            },
+            "transport": {}
+        }
+        
+        # Handle different transport types
+        net = config.get("net", "ws")
+        if net == "ws":
+            outbound["transport"] = {
+                "type": "ws",
+                "path": config.get("path", "/"),
+                "headers": {"Host": config.get("host", config.get("add", ""))}
+            }
+            outbound["_ws_host"] = config.get("host", "")
+            outbound["_ws_path"] = config.get("path", "/")
+        elif net == "grpc":
+            outbound["transport"] = {
+                "type": "grpc",
+                "service_name": config.get("path", "")
+            }
+            outbound["_grpc_service"] = config.get("path", "")
+        elif net == "tcp":
+            outbound["transport"] = {
+                "type": "tcp"
+            }
+            # Handle HTTP header obfuscation
+            if config.get("type") == "http":
+                outbound["transport"]["header"] = {
+                    "type": "http",
+                    "request": {
+                        "path": [config.get("path", "/")],
+                        "headers": {
+                            "Host": [config.get("host", config.get("add", ""))]
+                        }
+                    }
+                }
+        elif net == "kcp":
+            outbound["transport"] = {
+                "type": "kcp",
+                "header": {
+                    "type": config.get("type", "none")
+                }
+            }
+        elif net == "quic":
+            outbound["transport"] = {
+                "type": "quic",
+                "header": {
+                    "type": config.get("type", "none")
+                }
+            }
+        else:
+            outbound["_ws_host"] = ""
+            outbound["_ws_path"] = ""
+            
+        return outbound
+        
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        return None
+
+def parse_hysteria(link):
+    """Parse hysteria:// links"""
+    if not link.startswith("hysteria://"):
+        return None
+    
+    try:
+        url = urlparse(link)
+        params = parse_qs(url.query)
+        
+        outbound = {
+            "type": "hysteria",
+            "tag": unquote(url.fragment) if url.fragment else url.hostname,
+            "server": url.hostname,
+            "server_port": int(url.port or 443),
+            "auth_str": url.username,
+            "tls": {
+                "enabled": True,
+                "server_name": params.get("sni", [url.hostname])[0],
+                "insecure": params.get("allowInsecure", ["false"])[0] == "true",
+            }
+        }
+        
+        # Handle additional hysteria parameters
+        if "upmbps" in params:
+            outbound["up_mbps"] = int(params["upmbps"][0])
+        if "downmbps" in params:
+            outbound["down_mbps"] = int(params["downmbps"][0])
+        if "obfs" in params:
+            outbound["obfs"] = params["obfs"][0]
+        
+        return outbound
+        
+    except Exception as e:
+        return None
+
+def parse_hysteria2(link):
+    """Parse hysteria2:// or hy2:// links"""
+    if not (link.startswith("hysteria2://") or link.startswith("hy2://")):
+        return None
+    
+    try:
+        url = urlparse(link)
+        params = parse_qs(url.query)
+        
+        outbound = {
+            "type": "hysteria2",
+            "tag": unquote(url.fragment) if url.fragment else url.hostname,
+            "server": url.hostname,
+            "server_port": int(url.port or 443),
+            "password": url.username,
+            "tls": {
+                "enabled": True,
+                "server_name": params.get("sni", [url.hostname])[0],
+                "insecure": params.get("allowInsecure", ["false"])[0] == "true",
+            }
+        }
+        
+        # Handle additional hysteria2 parameters
+        if "obfs" in params:
+            outbound["obfs"] = {
+                "type": params["obfs"][0],
+                "password": params.get("obfs-password", [""])[0]
+            }
+        
+        return outbound
+        
+    except Exception as e:
+        return None
+
+def parse_tuic(link):
+    """Parse tuic:// links"""
+    if not link.startswith("tuic://"):
+        return None
+    
+    try:
+        url = urlparse(link)
+        params = parse_qs(url.query)
+        
+        # Extract UUID and password from username
+        if url.username and ":" in url.username:
+            uuid, password = url.username.split(":", 1)
+        else:
+            uuid = url.username
+            password = ""
+        
+        outbound = {
+            "type": "tuic",
+            "tag": unquote(url.fragment) if url.fragment else url.hostname,
+            "server": url.hostname,
+            "server_port": int(url.port or 443),
+            "uuid": uuid,
+            "password": password,
+            "tls": {
+                "enabled": True,
+                "server_name": params.get("sni", [url.hostname])[0],
+                "insecure": params.get("allowInsecure", ["false"])[0] == "true",
+            }
+        }
+        
+        # Handle additional tuic parameters
+        if "congestion_control" in params:
+            outbound["congestion_control"] = params["congestion_control"][0]
+        if "udp_relay_mode" in params:
+            outbound["udp_relay_mode"] = params["udp_relay_mode"][0]
+        if "alpn" in params:
+            outbound["tls"]["alpn"] = params["alpn"][0].split(",")
+        
+        return outbound
+        
+    except Exception as e:
+        return None
+
 def parse_link(link):
-    if link.startswith("vless://"):
+    """Enhanced link parser that supports multiple VPN protocols"""
+    link = link.strip()
+    
+    if link.startswith("vmess://"):
+        return parse_vmess(link)
+    elif link.startswith("vless://"):
         return parse_vless(link)
     elif link.startswith("trojan://"):
         return parse_trojan(link)
     elif link.startswith("ss://"):
         return parse_ss(link)
+    elif link.startswith("ssr://"):
+        return parse_ssr(link)
+    elif link.startswith("hysteria://"):
+        return parse_hysteria(link)
+    elif link.startswith("hysteria2://") or link.startswith("hy2://"):
+        return parse_hysteria2(link)
+    elif link.startswith("tuic://"):
+        return parse_tuic(link)
     else:
         return None
 
