@@ -88,7 +88,7 @@ def parse_ss(link):
         plugin_opts.append("tls")
     if "sni" in query_params:
         plugin_opts.append(f"sni={query_params['sni'][0]}")
-    if "encryption" in query_params:
+    if "encryption" in query_params and query_params["encryption"][0] != "none":
         plugin_opts.append(f"encryption={query_params['encryption'][0]}")
 
     outbound = {
@@ -242,7 +242,7 @@ def parse_trojan(link):
     # Handle additional trojan parameters
     if "fp" in params:
         outbound["tls"]["fingerprint"] = params["fp"][0]
-    if "encryption" in params:
+    if "encryption" in params and params["encryption"][0] != "none":
         outbound["encryption"] = params["encryption"][0]
     
     return outbound

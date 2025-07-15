@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize tooltips
     initializeTooltips();
+    
+    // Initialize theme
+    initializeTheme();
+    
+    // Add geometric shapes to background
+    generateGeometricShapes();
 });
 
 // Utility Functions
@@ -329,21 +335,27 @@ async function loadGitHubFile(filepath, filename) {
         const data = await response.json();
         
         if (response.ok) {
+            // Store the existing config content
+            const existingConfig = data.content;
+            currentConfigSha = data.sha;
+            currentGitHubPath = filepath;
+            
+            // Set the config output to the loaded content
+            document.getElementById('config-output').value = existingConfig;
+            
             // Extract accounts from the config
             const extractResponse = await fetch('/api/extract-from-config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ config: data.content }),
+                body: JSON.stringify({ config: existingConfig }),
             });
             
             const extractData = await extractResponse.json();
             
             if (extractResponse.ok) {
                 parsedAccounts = extractData.accounts;
-                currentConfigSha = data.sha;
-                currentGitHubPath = filepath;
                 
                 updateAccountCount();
                 updateButtonStates();
@@ -356,6 +368,9 @@ async function loadGitHubFile(filepath, filename) {
                 if (accountsContent.classList.contains('collapsed')) {
                     toggleSection('accounts-content');
                 }
+                
+                // Now automatically parse and test the loaded config
+                await parseAndTest();
             } else {
                 showNotification(extractData.error || 'Failed to extract accounts', 'error');
             }
@@ -386,28 +401,31 @@ function uploadToGitHub() {
         return;
     }
     
-    // Pre-fill filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
-    document.getElementById('upload-filename').value = `VortexVpn-${timestamp}.json`;
-    document.getElementById('commit-message').value = 'Update VPN configuration';
-    
-    showModal('upload-modal');
+    // Check if we're updating an existing file or creating a new one
+    if (currentGitHubPath && currentConfigSha) {
+        // Updating existing file
+        const filename = currentGitHubPath.split('/').pop();
+        const confirmUpdate = confirm(`Update existing file "${filename}"?`);
+        if (confirmUpdate) {
+            performGitHubUpload(currentGitHubPath, configOutput, `Update ${filename}`, currentConfigSha);
+        }
+    } else {
+        // Creating new file
+        const timestamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+        const filename = `VortexVpn-${timestamp}.json`;
+        const confirmCreate = confirm(`Create new file "${filename}"?`);
+        if (confirmCreate) {
+            performGitHubUpload(filename, configOutput, `Create ${filename}`, null);
+        }
+    }
+}
 }
 
-async function confirmUpload() {
+async function performGitHubUpload(filepath, content, message, sha) {
     const token = document.getElementById('github-token').value;
     const owner = document.getElementById('github-owner').value;
     const repo = document.getElementById('github-repo').value;
-    const filename = document.getElementById('upload-filename').value;
-    const commitMsg = document.getElementById('commit-message').value;
-    const configOutput = document.getElementById('config-output').value;
     
-    if (!filename || !commitMsg) {
-        showNotification('Please fill in filename and commit message', 'error');
-        return;
-    }
-    
-    closeModal('upload-modal');
     showLoading('Uploading to GitHub...');
     
     try {
@@ -420,26 +438,46 @@ async function confirmUpload() {
                 token,
                 owner,
                 repo,
-                filepath: filename,
-                content: configOutput,
-                commit_msg: commitMsg,
-                sha: currentGitHubPath === filename ? currentConfigSha : null
+                filepath: filepath,
+                content: content,
+                commit_msg: message,
+                sha: sha
             }),
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            showNotification('Successfully uploaded to GitHub!', 'success');
-            currentGitHubPath = filename;
+            showNotification(`Successfully ${sha ? 'updated' : 'created'} ${filepath}`, 'success');
+            
+            // Update SHA for future updates
+            currentConfigSha = data.sha;
+            currentGitHubPath = filepath;
+            
+            // Refresh files list
+            loadGitHubFiles();
         } else {
-            showNotification(data.error || 'Failed to upload', 'error');
+            showNotification(data.error || 'Upload failed', 'error');
         }
     } catch (error) {
         showNotification('Network error: ' + error.message, 'error');
     } finally {
         hideLoading();
     }
+}
+
+async function confirmUpload() {
+    const filename = document.getElementById('upload-filename').value;
+    const commitMsg = document.getElementById('commit-message').value;
+    const configOutput = document.getElementById('config-output').value;
+    
+    if (!filename || !commitMsg) {
+        showNotification('Please fill in filename and commit message', 'error');
+        return;
+    }
+    
+    closeModal('upload-modal');
+    await performGitHubUpload(filename, configOutput, commitMsg, currentConfigSha);
 }
 
 function createGitHubGist() {
@@ -1038,3 +1076,357 @@ document.getElementById('github-repo').addEventListener('input', saveGitHubCrede
 
 // Auto-update config stats when config changes
 document.getElementById('config-output').addEventListener('input', updateConfigStats);
+
+// Theme Toggle Functions
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // Add transition effect
+    document.body.style.transition = 'all 0.3s ease';
+    
+    // Update theme
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+    
+    // Show notification
+    showNotification(`Switched to ${newTheme} mode`, 'info');
+    
+    // Remove transition after animation
+    setTimeout(() => {
+        document.body.style.transition = '';
+    }, 300);
+}
+
+function updateThemeIcon(theme) {
+    const themeIcon = document.querySelector('#theme-toggle i');
+    if (theme === 'dark') {
+        themeIcon.className = 'fas fa-moon';
+    } else {
+        themeIcon.className = 'fas fa-sun';
+    }
+}
+
+// Geometric Shapes Animation
+function generateGeometricShapes() {
+    const animatedBg = document.querySelector('.animated-bg');
+    const shapesContainer = document.createElement('div');
+    shapesContainer.className = 'geometric-shapes';
+    
+    const shapes = ['triangle', 'square', 'circle', 'diamond', 'hexagon'];
+    
+    function createShape() {
+        const shape = document.createElement('div');
+        const shapeType = shapes[Math.floor(Math.random() * shapes.length)];
+        shape.className = `geometric-shape ${shapeType}`;
+        
+        // Random position
+        shape.style.left = Math.random() * 100 + '%';
+        shape.style.animationDuration = (Math.random() * 20 + 10) + 's';
+        shape.style.animationDelay = Math.random() * 5 + 's';
+        
+        shapesContainer.appendChild(shape);
+        
+        // Remove shape after animation
+        setTimeout(() => {
+            if (shape.parentNode) {
+                shape.parentNode.removeChild(shape);
+            }
+        }, 25000);
+    }
+    
+    animatedBg.appendChild(shapesContainer);
+    
+    // Create initial shapes
+    for (let i = 0; i < 10; i++) {
+        setTimeout(createShape, i * 2000);
+    }
+    
+    // Continuously create new shapes
+    setInterval(createShape, 3000);
+}
+
+// Enhanced Parse and Test Function
+async function parseAndTest() {
+    const linksInput = document.getElementById('vpn-links');
+    const links = extractLinks(linksInput.value);
+    
+    // Get existing config if any
+    let existingConfig = '';
+    const configOutput = document.getElementById('config-output');
+    if (configOutput.value) {
+        existingConfig = configOutput.value;
+    }
+    
+    if (links.length === 0 && !existingConfig) {
+        showNotification('Please enter VPN links or select a config file', 'error');
+        return;
+    }
+    
+    showLoading('Parsing and testing accounts...');
+    
+    try {
+        const response = await fetch('/api/parse-and-test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                links: links,
+                existing_config: existingConfig
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to parse and test');
+        }
+        
+        showNotification(`Started testing ${data.account_count} accounts`, 'success');
+        parsedAccounts = data.accounts;
+        updateAccountCount();
+        
+        // Start monitoring test results
+        startTestMonitoring();
+        
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Parse from existing config
+async function parseFromConfig() {
+    const configInput = prompt('Paste your config JSON here:');
+    if (!configInput) return;
+    
+    try {
+        showLoading('Extracting accounts from config...');
+        
+        const response = await fetch('/api/extract-from-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                config: configInput
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to extract accounts');
+        }
+        
+        showNotification(`Extracted ${data.count} accounts from config`, 'success');
+        
+        // Now parse and test these accounts
+        await parseAndTest();
+        
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Enhanced Test Results Display
+function displayTestResults(results) {
+    const container = document.getElementById('accounts-table');
+    
+    if (!results || results.length === 0) {
+        container.innerHTML = '<p>No test results to display</p>';
+        return;
+    }
+    
+    const table = document.createElement('table');
+    table.className = 'accounts-table';
+    
+    // Create header
+    const headerRow = document.createElement('tr');
+    const headers = ['#', 'Type', 'Status', 'Ping', 'Country', 'Provider', 'IP', 'Actions'];
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+    
+    // Create rows
+    results.forEach((result, index) => {
+        const row = document.createElement('tr');
+        row.className = 'row-enter';
+        
+        // Index
+        const indexCell = document.createElement('td');
+        indexCell.textContent = index + 1;
+        row.appendChild(indexCell);
+        
+        // Type
+        const typeCell = document.createElement('td');
+        typeCell.textContent = result.VpnType || 'Unknown';
+        row.appendChild(typeCell);
+        
+        // Status
+        const statusCell = document.createElement('td');
+        statusCell.innerHTML = getStatusHTML(result.Status);
+        row.appendChild(statusCell);
+        
+        // Ping with color coding
+        const pingCell = document.createElement('td');
+        pingCell.innerHTML = getPingHTML(result.Latency);
+        row.appendChild(pingCell);
+        
+        // Country
+        const countryCell = document.createElement('td');
+        countryCell.textContent = result.Country || '❓';
+        row.appendChild(countryCell);
+        
+        // Provider
+        const providerCell = document.createElement('td');
+        providerCell.textContent = result.Provider || '-';
+        row.appendChild(providerCell);
+        
+        // IP
+        const ipCell = document.createElement('td');
+        ipCell.textContent = result['Tested IP'] || '-';
+        row.appendChild(ipCell);
+        
+        // Actions
+        const actionsCell = document.createElement('td');
+        actionsCell.innerHTML = `
+            <button class="btn btn-small btn-info" onclick="retestAccount(${index})">
+                <i class="fas fa-redo"></i>
+            </button>
+        `;
+        row.appendChild(actionsCell);
+        
+        table.appendChild(row);
+    });
+    
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+// Get status HTML with appropriate styling
+function getStatusHTML(status) {
+    const statusMap = {
+        'WAIT': { class: 'status-waiting', icon: 'fas fa-clock', text: 'Waiting' },
+        'Testing...': { class: 'status-testing', icon: 'fas fa-spinner', text: 'Testing...' },
+        '●': { class: 'status-success', icon: 'fas fa-check-circle', text: 'Success' },
+        '✖': { class: 'status-failed', icon: 'fas fa-times-circle', text: 'Failed' },
+        'retry': { class: 'status-retry', icon: 'fas fa-redo', text: 'Retry' }
+    };
+    
+    const statusInfo = statusMap[status] || { class: 'status-waiting', icon: 'fas fa-question', text: status };
+    
+    return `<span class="${statusInfo.class}">
+        <i class="${statusInfo.icon}"></i> ${statusInfo.text}
+    </span>`;
+}
+
+// Get ping HTML with color coding
+function getPingHTML(latency) {
+    if (latency === -1 || latency === null) {
+        return '<span class="ping-bad">-</span>';
+    }
+    
+    const ping = parseInt(latency);
+    let pingClass = 'ping-bad';
+    let indicatorClass = 'bad';
+    
+    if (ping <= 50) {
+        pingClass = 'ping-excellent';
+        indicatorClass = 'excellent';
+    } else if (ping <= 100) {
+        pingClass = 'ping-good';
+        indicatorClass = 'good';
+    } else if (ping <= 200) {
+        pingClass = 'ping-fair';
+        indicatorClass = 'fair';
+    } else if (ping <= 300) {
+        pingClass = 'ping-poor';
+        indicatorClass = 'poor';
+    }
+    
+    return `<span class="${pingClass}">
+        <span class="ping-indicator ${indicatorClass}"></span>
+        ${ping}ms
+    </span>`;
+}
+
+// Start test monitoring
+function startTestMonitoring() {
+    if (testInterval) {
+        clearInterval(testInterval);
+    }
+    
+    testInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/test-results');
+            const data = await response.json();
+            
+            if (data.results) {
+                testResults = data.results;
+                displayTestResults(testResults);
+                updateButtonStates();
+                
+                // Check if testing is complete
+                if (!data.in_progress) {
+                    clearInterval(testInterval);
+                    testInterval = null;
+                    showNotification('Testing completed!', 'success');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching test results:', error);
+        }
+    }, 1000);
+}
+
+// Retest individual account
+async function retestAccount(index) {
+    if (!parsedAccounts[index]) {
+        showNotification('Account not found', 'error');
+        return;
+    }
+    
+    try {
+        showLoading('Retesting account...');
+        
+        const response = await fetch('/api/parse-and-test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                links: [parsedAccounts[index]],
+                existing_config: ''
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to retest account');
+        }
+        
+        showNotification('Account retest started', 'success');
+        startTestMonitoring();
+        
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}

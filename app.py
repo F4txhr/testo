@@ -258,5 +258,90 @@ def extract_from_config():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/parse-and-test', methods=['POST'])
+def parse_and_test():
+    global test_results, test_in_progress, test_semaphore
+    
+    data = request.get_json()
+    links = data.get('links', [])
+    existing_config = data.get('existing_config', '')
+    
+    if not links and not existing_config:
+        return jsonify({'error': 'No links or existing config provided'}), 400
+    
+    try:
+        # Parse new links
+        all_accounts = []
+        if links:
+            for link in links:
+                try:
+                    account = parse_link(link)
+                    if account:
+                        all_accounts.append(account)
+                except Exception as e:
+                    print(f"Error parsing link {link}: {e}")
+                    continue
+        
+        # Extract accounts from existing config
+        if existing_config:
+            try:
+                config_data = json.loads(existing_config)
+                existing_accounts = extract_accounts_from_config(config_data)
+                all_accounts.extend(existing_accounts)
+            except json.JSONDecodeError:
+                pass
+        
+        if not all_accounts:
+            return jsonify({'error': 'No valid accounts found'}), 400
+        
+        # Initialize test results
+        test_results = []
+        test_in_progress = True
+        test_semaphore = asyncio.Semaphore(5)
+        
+        # Start testing in a separate thread
+        def test_worker():
+            global test_results, test_in_progress
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Initialize results
+                test_results = [None] * len(all_accounts)
+                
+                # Create test tasks
+                tasks = []
+                for i, account in enumerate(all_accounts):
+                    task = test_account(account, test_semaphore, i, test_results)
+                    tasks.append(task)
+                
+                # Run tests
+                loop.run_until_complete(asyncio.gather(*tasks))
+                
+                # Update results
+                for i, result in enumerate(test_results):
+                    if result is not None:
+                        test_results[i] = result
+                
+            except Exception as e:
+                print(f"Error in test worker: {e}")
+            finally:
+                test_in_progress = False
+                loop.close()
+        
+        # Start testing thread
+        test_thread = threading.Thread(target=test_worker)
+        test_thread.daemon = True
+        test_thread.start()
+        
+        return jsonify({
+            'message': 'Parse and test started',
+            'account_count': len(all_accounts),
+            'accounts': all_accounts
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
