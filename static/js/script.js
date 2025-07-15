@@ -735,6 +735,7 @@ function displayAccountsTable() {
                 <th><i class="fas fa-flag"></i> Country</th>
                 <th><i class="fas fa-building"></i> Provider</th>
                 <th><i class="fas fa-map-marker-alt"></i> IP</th>
+                <th><i class="fas fa-vial"></i> Test Type</th>
                 <th><i class="fas fa-clock"></i> Latency</th>
                 <th><i class="fas fa-wave-square"></i> Jitter</th>
                 <th><i class="fas fa-satellite-dish"></i> ICMP</th>
@@ -774,6 +775,9 @@ function displayAccountsTable() {
                         </td>
                         <td class="ip-cell">
                             <span class="ip-text">${result.ip || '-'}</span>
+                        </td>
+                        <td class="test-type-cell">
+                            <span class="test-type-badge ${getTestTypeClass(result.TestType)}">${result.TestType || 'N/A'}</span>
                         </td>
                         <td class="latency-cell">
                             <span class="latency-value" style="color: ${latencyColor}">
@@ -883,6 +887,17 @@ function getIcmpClass(icmp) {
     return 'icmp-unknown';
 }
 
+function getTestTypeClass(testType) {
+    if (!testType || testType === 'N/A') return 'test-type-unknown';
+    
+    const type = testType.toLowerCase();
+    if (type.includes('path')) return 'test-type-path';
+    if (type.includes('host')) return 'test-type-host';
+    if (type.includes('server')) return 'test-type-server';
+    
+    return 'test-type-unknown';
+}
+
 function truncateText(text, maxLength) {
     if (!text || text.length <= maxLength) return text;
     return text.substring(0, maxLength - 3) + '...';
@@ -907,7 +922,11 @@ function showAccountInfo(index) {
         - Server: ${account.server || 'N/A'}
         - Port: ${account.server_port || 'N/A'}
         - Status: ${result.status || 'Not tested'}
+        - Test Type: ${result.TestType || 'N/A'}
         - Latency: ${result.latency >= 0 ? result.latency + ' ms' : 'N/A'}
+        - Jitter: ${result.jitter >= 0 ? result.jitter + ' ms' : 'N/A'}
+        - ICMP: ${result.icmp || 'N/A'}
+        - Tested IP: ${result.ip || 'N/A'}
         - Country: ${result.country || 'Unknown'}
         - Provider: ${result.provider || 'Unknown'}
     `;

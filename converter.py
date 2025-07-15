@@ -21,12 +21,61 @@ def extract_ip_port_from_path(path):
         return m.group(1), int(m.group(2))
     return None, None
 
+def clean_host_from_server(host, server):
+    """Remove server part from host if it contains it"""
+    if not host or not server:
+        return host
+    
+    # Remove server prefix if host starts with server
+    if host.startswith(server + "."):
+        return host[len(server) + 1:]
+    
+    # Remove server suffix if host ends with server
+    if host.endswith("." + server):
+        return host[:-len("." + server)]
+    
+    # If host contains server as a subdomain, remove it
+    if "." + server + "." in host:
+        return host.replace("." + server + ".", ".")
+    
+    return host
+
 def get_host_to_test(server, ws_host):
+    """Get the best host for testing, cleaning up server redundancy"""
     if ws_host:
-        if ws_host.startswith(server + "."):
-            return ws_host[len(server) + 1 :]
-        return ws_host
+        cleaned_host = clean_host_from_server(ws_host, server)
+        return cleaned_host if cleaned_host else ws_host
     return server
+
+def get_test_target(account):
+    """Get the best target (IP and port) for testing an account"""
+    # First try to extract from path
+    path_str = account.get("_ss_path") or account.get("_ws_path") or ""
+    path_info = extract_ip_port_from_path(path_str)
+    
+    if path_info and path_info[0]:
+        # Found IP in path
+        target_ip = path_info[0]
+        target_port = path_info[1] if path_info[1] else (account.get("server_port") or 443)
+        return target_ip, target_port, "path"
+    
+    # If no IP in path, try to use host
+    server = account.get("server", "")
+    ws_host = account.get("_ws_host") or account.get("_ss_ws_host") or ""
+    
+    if ws_host:
+        # Clean host and use it for testing
+        cleaned_host = clean_host_from_server(ws_host, server)
+        test_host = cleaned_host if cleaned_host else ws_host
+        target_port = account.get("server_port") or 443
+        return test_host, target_port, "host"
+    
+    # Fall back to server
+    if server:
+        target_port = account.get("server_port") or 443
+        return server, target_port, "server"
+    
+    return None, None, "none"
 
 def parse_ss(link):
     url = link.replace("ss://", "", 1)

@@ -5,7 +5,7 @@ import os
 import re
 
 from utils import is_alive, geoip_lookup, get_network_stats
-from converter import extract_ip_port_from_path
+from converter import extract_ip_port_from_path, get_test_target
 
 MAX_RETRIES = 3
 RETRY_DELAY = 1.5  # detik
@@ -26,14 +26,16 @@ async def test_account(account: dict, semaphore: asyncio.Semaphore, index: int, 
     }
 
     async with semaphore:
-        path_str = account.get("_ss_path") or account.get("_ws_path") or ""
-        path_info = extract_ip_port_from_path(path_str)
-        if not path_info or not path_info[0]:
-            result['Status'] = '✖ (No Path IP)'
+        # Use the new get_test_target function to get the best target
+        target_ip, target_port, test_type = get_test_target(account)
+        
+        if not target_ip:
+            result['Status'] = '✖ (No Target Found)'
+            result['TestType'] = 'none'
             return result
 
-        target_ip = path_info[0]
-        target_port = path_info[1] if len(path_info) > 1 and path_info[1] else 443
+        result['TestType'] = test_type
+        result['Tested IP'] = target_ip
 
         try:
             target_port = int(target_port)
@@ -52,7 +54,7 @@ async def test_account(account: dict, semaphore: asyncio.Semaphore, index: int, 
                 geo_info = geoip_lookup(target_ip)
                 result.update({
                     "Status": "●",
-                    "TestType": "Path TCP",
+                    "TestType": f"{test_type.title()} TCP",
                     "Tested IP": target_ip,
                     "Latency": latency,
                     "Jitter": 0,
@@ -82,7 +84,7 @@ async def test_account(account: dict, semaphore: asyncio.Semaphore, index: int, 
                 geo_info = geoip_lookup(target_ip)
                 result.update({
                     "Status": "●",
-                    "TestType": "Path Ping",
+                    "TestType": f"{test_type.title()} Ping",
                     "Tested IP": target_ip,
                     **stats,
                     **geo_info
@@ -97,6 +99,5 @@ async def test_account(account: dict, semaphore: asyncio.Semaphore, index: int, 
                     await asyncio.sleep(0)
                 await asyncio.sleep(RETRY_DELAY)
 
-    result['Status'] = '✖'
-    result['Retry'] = MAX_RETRIES
+    result['Status'] = f'✖ ({test_type.title()} Failed)'
     return result
